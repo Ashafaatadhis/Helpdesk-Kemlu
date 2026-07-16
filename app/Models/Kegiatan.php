@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Teknisi;
 use Illuminate\Database\Eloquent\Model;
 
 class Kegiatan extends Model
@@ -18,7 +19,6 @@ class Kegiatan extends Model
         'satker_permohonan',
         'lokasi',
         'cp_satker',
-        'petugas',
         'peralatan_akun',
         'status',
         'eselon',
@@ -42,11 +42,8 @@ class Kegiatan extends Model
     /**
      * Get petugas as array (split from comma-separated string)
      */
-    public function getPetugasArrayAttribute(): array
+    public function teknisi()
     {
-        if (empty($this->petugas)) {
-            return [];
-        }
-        return array_map('trim', explode(',', $this->petugas));
+        return $this->belongsToMany(Teknisi::class, 'kegiatan_teknisi', 'kegiatan_id', 'teknisi_nip', 'id', 'nip');
     }
 }

@@ -107,14 +107,14 @@
               <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Petugas</h3>
               <div class="flex flex-wrap gap-2">
                 <span
-                  v-for="petugas in parsePetugas(kegiatan.petugas)"
+                  v-for="petugas in parsePetugas(kegiatan.teknisi)"
                   :key="petugas"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-sm font-semibold rounded-lg"
                 >
                   <UserCircleIcon class="w-4 h-4" />
                   {{ petugas }}
                 </span>
-                <span v-if="!kegiatan.petugas" class="text-sm text-gray-400">-</span>
+                <span v-if="!kegiatan.teknisi?.length" class="text-sm text-gray-400">-</span>
               </div>
             </div>
 
@@ -150,9 +150,10 @@ const props = defineProps({ kegiatan: Object });
 function goBack() { router.visit('/admin/kegiatan'); }
 function goToEdit() { router.visit(`/admin/kegiatan/${props.kegiatan.id}/edit`); }
 
-function parsePetugas(p) {
-  if (!p) return [];
-  return p.split(',').map(s => s.trim()).filter(Boolean);
+function parsePetugas(teknisi) {
+  if (!teknisi) return [];
+  if (Array.isArray(teknisi)) return teknisi.map(t => t.name ?? t);
+  return String(teknisi).split(',').map(s => s.trim()).filter(Boolean);
 }
 
 function formatDate(d) {

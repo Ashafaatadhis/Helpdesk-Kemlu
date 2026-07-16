@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kegiatan;
+use App\Models\Teknisi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -15,7 +16,7 @@ class KegiatanController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Kegiatan::query();
+        $query = Kegiatan::with('teknisi');
 
         // Filter: search
         if ($request->filled('search')) {
@@ -24,7 +25,7 @@ class KegiatanController extends Controller
                 $q->where('nama_kegiatan', 'LIKE', "%{$search}%")
                     ->orWhere('nomor_nodin', 'LIKE', "%{$search}%")
                     ->orWhere('satker_permohonan', 'LIKE', "%{$search}%")
-                    ->orWhere('petugas', 'LIKE', "%{$search}%");
+                    ->orWhereHas('teknisi', fn($t) => $t->where('name', 'LIKE', "%{$search}%"));
             });
         }
 
@@ -69,7 +70,8 @@ class KegiatanController extends Controller
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
 
-        $kegiatan = Kegiatan::whereMonth('tgl_dari', $month)
+        $kegiatan = Kegiatan::with('teknisi')
+            ->whereMonth('tgl_dari', $month)
             ->whereYear('tgl_dari', $year)
             ->orderBy('tgl_dari', 'asc')
             ->get();
@@ -105,7 +107,8 @@ class KegiatanController extends Controller
             'lokasi' => 'nullable|string|max:255',
             'warna_lokasi' => 'nullable|string|max:32',
             'cp_satker' => 'nullable|string|max:255',
-            'petugas' => 'nullable|string',
+            'teknisi_nips' => 'nullable|array',
+            'teknisi_nips.*' => 'exists:teknisis,nip',
             'peralatan_akun' => 'nullable|string',
             'status' => 'nullable|string|in:Pending,Done,Mandiri,Batal',
         ]);
@@ -120,14 +123,14 @@ class KegiatanController extends Controller
         try {
             DB::beginTransaction();
 
-            $kegiatan = Kegiatan::create($validator->validated() + [
-                'status' => $request->input('status', 'Pending'),
-            ]);
+            $data = collect($validator->validated())->except('teknisi_nips')->toArray();
+            $kegiatan = Kegiatan::create($data + ['status' => $request->input('status', 'Pending')]);
+            $kegiatan->teknisi()->sync($request->input('teknisi_nips', []));
 
             DB::commit();
 
             if ($request->expectsJson()) {
-                return response()->json(['success' => true, 'data' => $kegiatan], 201);
+                return response()->json(['success' => true, 'data' => $kegiatan->load('teknisi')], 201);
             }
             return redirect()->route('admin.kegiatan.index')->with('success', 'Kegiatan berhasil ditambahkan.');
         } catch (\Exception $e) {
@@ -144,7 +147,7 @@ class KegiatanController extends Controller
      */
     public function show($id)
     {
-        $kegiatan = Kegiatan::findOrFail($id);
+        $kegiatan = Kegiatan::with('teknisi')->findOrFail($id);
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'data' => $kegiatan]);
@@ -175,7 +178,8 @@ class KegiatanController extends Controller
             'lokasi' => 'nullable|string|max:255',
             'warna_lokasi' => 'nullable|string|max:32',
             'cp_satker' => 'nullable|string|max:255',
-            'petugas' => 'nullable|string',
+            'teknisi_nips' => 'nullable|array',
+            'teknisi_nips.*' => 'exists:teknisis,nip',
             'peralatan_akun' => 'nullable|string',
             'status' => 'nullable|string|in:Pending,Done,Mandiri,Batal',
         ]);
@@ -190,12 +194,16 @@ class KegiatanController extends Controller
         try {
             DB::beginTransaction();
 
-            $kegiatan->update($validator->validated());
+            $data = collect($validator->validated())->except('teknisi_nips')->toArray();
+            $kegiatan->update($data);
+            if ($request->has('teknisi_nips')) {
+                $kegiatan->teknisi()->sync($request->input('teknisi_nips', []));
+            }
 
             DB::commit();
 
             if ($request->expectsJson()) {
-                return response()->json(['success' => true, 'data' => $kegiatan->fresh()]);
+                return response()->json(['success' => true, 'data' => $kegiatan->fresh()->load('teknisi')]);
             }
             return redirect()->route('admin.kegiatan.index')->with('success', 'Kegiatan berhasil diupdate.');
         } catch (\Exception $e) {
@@ -245,7 +253,7 @@ class KegiatanController extends Controller
                 $q->where('nama_kegiatan', 'LIKE', "%{$search}%")
                     ->orWhere('nomor_nodin', 'LIKE', "%{$search}%")
                     ->orWhere('satker_permohonan', 'LIKE', "%{$search}%")
-                    ->orWhere('petugas', 'LIKE', "%{$search}%");
+                    ->orWhereHas('teknisi', fn($t) => $t->where('name', 'LIKE', "%{$search}%"));
             });
         }
 
@@ -258,7 +266,7 @@ class KegiatanController extends Controller
         $query->whereMonth('tgl_dari', $month)
             ->whereYear('tgl_dari', $year);
 
-        $kegiatan = $query->orderBy('tgl_dari', 'desc')->get();
+        $kegiatan = $query->with('teknisi')->orderBy('tgl_dari', 'desc')->get();
 
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',

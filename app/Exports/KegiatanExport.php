@@ -59,7 +59,7 @@ class KegiatanExport implements FromCollection, WithHeadings, WithMapping, WithS
             $item->eselon ?? '-',
             $item->lokasi ?? '-',
             $item->cp_satker ?? '-',
-            $item->petugas ?? '-',
+            $item->teknisi->pluck('name')->join(', ') ?: '-',
             $item->peralatan_akun ?? '-',
             $item->status ?? 'Pending',
         ];

@@ -144,7 +144,7 @@
                 <td class="px-5 py-4">
                   <div class="flex flex-wrap gap-1.5">
                     <span
-                      v-for="petugas in parsePetugas(item.petugas)"
+                      v-for="petugas in parsePetugas(item.teknisi)"
                       :key="petugas"
                       class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg"
                     >
@@ -360,9 +360,10 @@ function statusBgClass(status) {
   return map[status] || 'bg-amber-500';
 }
 
-function parsePetugas(p) {
-  if (!p) return [];
-  return p.split(',').map(s => s.trim()).filter(Boolean);
+function parsePetugas(teknisi) {
+  if (!teknisi) return [];
+  if (Array.isArray(teknisi)) return teknisi.map(t => t.name ?? t);
+  return String(teknisi).split(',').map(s => s.trim()).filter(Boolean);
 }
 
 function formatDate(d) {

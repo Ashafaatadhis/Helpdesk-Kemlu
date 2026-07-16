@@ -98,10 +98,17 @@
                 class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white truncate cursor-pointer hover:opacity-80 transition"
                 :style="{ background: event.color }"
                 @click.stop="showEventDetail(event)"
+                @mouseenter="onEventMouseEnter(event, $event)"
+                @mouseleave="onEventMouseLeave"
               >
                 {{ event.petugas }}
               </div>
-              <div v-if="cell.events.length > 3" class="text-[10px] text-gray-400 font-semibold pl-1">
+              <div
+                v-if="cell.events.length > 3"
+                class="text-[10px] text-gray-400 font-semibold pl-1 cursor-pointer hover:text-indigo-500 transition relative"
+                @mouseenter="onMoreMouseEnter(cell.events.slice(3), $event)"
+                @mouseleave="onEventMouseLeave"
+              >
                 +{{ cell.events.length - 3 }} lainnya
               </div>
             </div>
@@ -135,6 +142,8 @@
                 class="px-2 py-1.5 rounded-lg text-xs font-bold text-white cursor-pointer hover:opacity-80 transition"
                 :style="{ background: event.color }"
                 @click.stop="showEventDetail(event)"
+                @mouseenter="onEventMouseEnter(event, $event)"
+                @mouseleave="onEventMouseLeave"
               >
                 <p class="truncate">{{ event.petugas }}</p>
                 <p class="text-[10px] opacity-80 truncate">{{ event.nama_kegiatan }}</p>
@@ -146,6 +155,59 @@
         </div>
       </div>
     </div>
+
+    <!-- Hover Tooltip -->
+    <Teleport to="body">
+      <Transition name="tooltip">
+        <div
+          v-if="hoveredEvent"
+          class="fixed z-[9998] pointer-events-none"
+          :style="{ left: tooltipPos.x + 'px', top: (tooltipPos.y - 8) + 'px', transform: 'translate(-50%, -100%)' }"
+        >
+          <div class="bg-gray-900 text-white rounded-xl shadow-xl p-3 w-56 text-xs space-y-1.5">
+            <div class="font-bold text-sm truncate">{{ hoveredEvent.nama_kegiatan }}</div>
+            <div class="flex items-center gap-1.5 text-gray-300">
+              <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: hoveredEvent.color }"></span>
+              {{ hoveredEvent.petugas }}
+            </div>
+            <div class="text-gray-400">📍 {{ hoveredEvent.lokasi || '-' }}</div>
+            <div class="text-gray-400">🕐 {{ hoveredEvent.waktu }}</div>
+            <div class="flex items-center justify-between mt-1 pt-1.5 border-t border-white/10">
+              <span class="text-gray-400">{{ hoveredEvent.date }}</span>
+              <span class="px-2 py-0.5 rounded-full font-bold text-[10px]" :class="statusBadgeClass(hoveredEvent.status)">
+                {{ hoveredEvent.status || 'Pending' }}
+              </span>
+            </div>
+            <div class="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- More Events Tooltip -->
+    <Teleport to="body">
+      <Transition name="tooltip">
+        <div
+          v-if="hoveredMoreEvents"
+          class="fixed z-[9998] pointer-events-none"
+          :style="{ left: tooltipPos.x + 'px', top: (tooltipPos.y - 8) + 'px', transform: 'translate(-50%, -100%)' }"
+        >
+          <div class="bg-gray-900 text-white rounded-xl shadow-xl p-3 w-52 space-y-1.5">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Kegiatan lainnya</div>
+            <div
+              v-for="ev in hoveredMoreEvents"
+              :key="ev.id"
+              class="flex items-center gap-2 text-xs"
+            >
+              <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: ev.color }"></span>
+              <span class="truncate text-gray-200">{{ ev.petugas }}</span>
+              <span class="text-gray-500 text-[10px] flex-shrink-0">{{ ev.waktu.split(' - ')[0] }}</span>
+            </div>
+            <div class="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Modal -->
     <Teleport to="body">
@@ -222,6 +284,26 @@ const currentWeekStart = ref(getWeekStart(today));
 const currentView = ref('month');
 const searchQuery = ref('');
 const selectedEvent = ref(null);
+const hoveredEvent = ref(null);
+const hoveredMoreEvents = ref(null);
+const tooltipPos = ref({ x: 0, y: 0 });
+
+function onEventMouseEnter(event, e) {
+  hoveredMoreEvents.value = null;
+  hoveredEvent.value = event;
+  const rect = e.currentTarget.getBoundingClientRect();
+  tooltipPos.value = { x: rect.left + rect.width / 2, y: rect.top };
+}
+function onMoreMouseEnter(events, e) {
+  hoveredEvent.value = null;
+  hoveredMoreEvents.value = events;
+  const rect = e.currentTarget.getBoundingClientRect();
+  tooltipPos.value = { x: rect.left + rect.width / 2, y: rect.top };
+}
+function onEventMouseLeave() {
+  hoveredEvent.value = null;
+  hoveredMoreEvents.value = null;
+}
 
 const months = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -266,7 +348,8 @@ const filteredKegiatan = computed(() => {
   if (!searchQuery.value) return props.kegiatan || [];
   const q = searchQuery.value.toLowerCase();
   return (props.kegiatan || []).filter(k =>
-    (k.petugas || '').toLowerCase().includes(q) || (k.nama_kegiatan || '').toLowerCase().includes(q)
+    (k.nama_kegiatan || '').toLowerCase().includes(q) ||
+    (Array.isArray(k.teknisi) && k.teknisi.some(t => t.name.toLowerCase().includes(q)))
   );
 });
 
@@ -279,7 +362,8 @@ function getEventsForDate(date) {
     const end = new Date(ey, em - 1, ed);
     if (date >= start && date <= end) {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      (k.petugas || '').split(',').map(p => p.trim()).filter(Boolean).forEach(p => {
+      const petugasList = Array.isArray(k.teknisi) ? k.teknisi.map(t => t.name) : [];
+      petugasList.forEach(p => {
         events.push({
           id: `${k.id}-${p}-${dateStr}`, petugas: p, nama_kegiatan: k.nama_kegiatan,
           lokasi: k.lokasi, color: getColor(k), date: dateStr,
@@ -396,4 +480,6 @@ function statusBadgeClass(status) {
 <style scoped>
 .modal-enter-active, .modal-leave-active { transition: 0.2s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
+.tooltip-enter-active, .tooltip-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.tooltip-enter-from, .tooltip-leave-to { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); }
 </style>

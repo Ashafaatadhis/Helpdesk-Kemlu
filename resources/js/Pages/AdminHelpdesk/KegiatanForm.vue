@@ -145,8 +145,20 @@
               <input type="text" v-model="form.cp_satker" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="Nama - 08123456789" />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1.5">Petugas (pisahkan dengan koma)</label>
-              <input type="text" v-model="form.petugas" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="Ali Rahman, Kenny Sugito" />
+              <label class="block text-xs font-semibold text-gray-600 mb-1.5">Petugas</label>
+              <VueMultiselect
+                v-model="selectedTeknisi"
+                :options="teknisiList"
+                :multiple="true"
+                :close-on-select="false"
+                :clear-on-select="false"
+                :preserve-search="true"
+                placeholder="Pilih petugas..."
+                label="name"
+                track-by="nip"
+                :show-labels="false"
+                :searchable="true"
+              />
             </div>
           </div>
         </div>
@@ -191,10 +203,12 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import VueMultiselect from 'vue-multiselect';
+import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 const { t } = useI18n();
 import {
@@ -212,6 +226,7 @@ import {
 const props = defineProps({
   kegiatan: { type: Object, default: null },
   satuanKerjaList: { type: Array, default: () => [] },
+  teknisiList: { type: Array, default: () => [] },
 });
 
 const isEdit = ref(!!props.kegiatan);
@@ -229,17 +244,24 @@ const form = reactive({
   nama_kegiatan: '', deskripsi: '', tgl_dari: '', tgl_sampai: '',
   waktu_mulai: '', waktu_selesai: '', nomor_nodin: '', satker_permohonan: '',
   eselon: '', lokasi: '', warna_lokasi: '', cp_satker: '',
-  petugas: '', peralatan_akun: '', status: 'Pending',
+  teknisi_nips: [], peralatan_akun: '', status: 'Pending',
 });
 
 onMounted(() => {
   if (props.kegiatan) {
+    const { teknisi, ...rest } = props.kegiatan;
     Object.keys(form).forEach(key => {
-      if (props.kegiatan[key] !== undefined && props.kegiatan[key] !== null) {
-        form[key] = props.kegiatan[key];
+      if (rest[key] !== undefined && rest[key] !== null) {
+        form[key] = rest[key];
       }
     });
+    form.teknisi_nips = Array.isArray(teknisi) ? teknisi.map(t => t.nip) : [];
   }
+});
+
+const selectedTeknisi = computed({
+  get: () => props.teknisiList.filter(t => form.teknisi_nips.includes(t.nip)),
+  set: (val) => { form.teknisi_nips = val.map(t => t.nip); },
 });
 
 function isFormValid() {
@@ -247,7 +269,7 @@ function isFormValid() {
 }
 
 function resetForm() {
-  Object.keys(form).forEach(key => { form[key] = ''; });
+  Object.keys(form).forEach(key => { form[key] = Array.isArray(form[key]) ? [] : ''; });
   form.status = 'Pending';
 }
 

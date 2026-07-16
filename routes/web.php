@@ -97,28 +97,33 @@ Route::middleware(['auth:web,admin_helpdesk,admin_aplikasi,teknisi,user', 'sessi
         // --- KEGIATAN ---
         Route::get('/kegiatan', [\App\Http\Controllers\KegiatanController::class, 'index'])->name('kegiatan.index');
         Route::get('/kegiatan/create', function () {
-            return Inertia::render('AdminHelpdesk/KegiatanForm', [
-                'satuanKerjaList' => [
-                    'Staf Ahli Bidang Manajemen', 'Sekretariat Jenderal', 'Biro Umum',
-                    'Biro Kepegawaian', 'Biro Protokol', 'Biro Hukum',
-                    'Biro Perencanaan', 'Biro Keuangan', 'Biro Informasi',
-                    'Pusat Diplomasi Publik', 'Pusat Data dan Informasi', 'Inspektorat Jenderal',
-                ],
-            ]);
+            $satuanKerjaList = [
+                'Staf Ahli Bidang Manajemen', 'Sekretariat Jenderal', 'Biro Umum',
+                'Biro Kepegawaian', 'Biro Protokol', 'Biro Hukum',
+                'Biro Perencanaan', 'Biro Keuangan', 'Biro Informasi',
+                'Pusat Diplomasi Publik', 'Pusat Data dan Informasi', 'Inspektorat Jenderal',
+            ];
+            $teknisiList = \App\Models\Teknisi::where('status', 'active')
+                ->select('nip', 'name')
+                ->orderBy('name')
+                ->get();
+            return Inertia::render('AdminHelpdesk/KegiatanForm', compact('satuanKerjaList', 'teknisiList'));
         })->name('kegiatan.create');
         Route::post('/kegiatan', [\App\Http\Controllers\KegiatanController::class, 'store'])->name('kegiatan.store');
         Route::get('/kegiatan/{id}', [\App\Http\Controllers\KegiatanController::class, 'show'])->name('kegiatan.show');
         Route::get('/kegiatan/{id}/edit', function ($id) {
-            $kegiatan = \App\Models\Kegiatan::findOrFail($id);
-            return Inertia::render('AdminHelpdesk/KegiatanForm', [
-                'kegiatan' => $kegiatan,
-                'satuanKerjaList' => [
-                    'Staf Ahli Bidang Manajemen', 'Sekretariat Jenderal', 'Biro Umum',
-                    'Biro Kepegawaian', 'Biro Protokol', 'Biro Hukum',
-                    'Biro Perencanaan', 'Biro Keuangan', 'Biro Informasi',
-                    'Pusat Diplomasi Publik', 'Pusat Data dan Informasi', 'Inspektorat Jenderal',
-                ],
-            ]);
+            $kegiatan = \App\Models\Kegiatan::with('teknisi')->findOrFail($id);
+            $satuanKerjaList = [
+                'Staf Ahli Bidang Manajemen', 'Sekretariat Jenderal', 'Biro Umum',
+                'Biro Kepegawaian', 'Biro Protokol', 'Biro Hukum',
+                'Biro Perencanaan', 'Biro Keuangan', 'Biro Informasi',
+                'Pusat Diplomasi Publik', 'Pusat Data dan Informasi', 'Inspektorat Jenderal',
+            ];
+            $teknisiList = \App\Models\Teknisi::where('status', 'active')
+                ->select('nip', 'name')
+                ->orderBy('name')
+                ->get();
+            return Inertia::render('AdminHelpdesk/KegiatanForm', compact('kegiatan', 'satuanKerjaList', 'teknisiList'));
         })->name('kegiatan.edit');
         Route::put('/kegiatan/{id}', [\App\Http\Controllers\KegiatanController::class, 'update'])->name('kegiatan.update');
         Route::delete('/kegiatan/{id}', [\App\Http\Controllers\KegiatanController::class, 'destroy'])->name('kegiatan.destroy');
